@@ -17,6 +17,29 @@ slack_event_adapter = SlackEventAdapter(os.environ['SIGNING_SECRET'], '/slack/ev
 client = slack.WebClient(token=os.environ['SLACK_TOKEN'])
 BOT_ID = client.api_call("auth.test")['user_id']
 
+
+@app.route('/subscribe', methods=['POST'])
+def subscribe():
+    data = request.form
+    user_id = data.get('user_id')
+    service = data.get('text')
+    if service == 'stretch':
+        client.chat_postMessage(channel=user_id, text="Subscribed to stretch notifications!")
+    elif service == 'nagging':
+        #Victoria
+    elif service == 'memes':
+        #Steffy
+    elif service == 'eye-break':
+        #Steffy
+    elif service == 'water':
+        #Thulie
+    elif service == 'motivational-quotes':
+        #Thulie
+    else:
+        client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your command.")
+    return Response(), 200
+
+
 if __name__ == "__main__":
     if DEBUG:
         app.run(debug=True)
