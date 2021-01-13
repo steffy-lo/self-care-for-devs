@@ -26,15 +26,20 @@ def subscribe():
     if service == 'stretch':
         client.chat_postMessage(channel=user_id, text="Subscribed to stretch notifications!")
     elif service == 'nagging':
-        #Victoria
+        # Victoria
+        raise NotImplemented
     elif service == 'memes':
-        #Steffy
+        # Steffy
+        raise NotImplemented
     elif service == 'eye-break':
-        #Steffy
+        # Steffy
+        raise NotImplemented
     elif service == 'water':
-        #Thulie
+        # Thulie
+        raise NotImplemented
     elif service == 'motivational-quotes':
-        #Thulie
+        # Thulie
+        raise NotImplemented
     else:
         client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your command.")
     return Response(), 200
