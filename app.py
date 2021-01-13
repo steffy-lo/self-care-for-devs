@@ -28,7 +28,6 @@ def subscribe():
         subscribe_stretch()
     elif service == 'nagging':
         # Victoria
-        raise NotImplemented
         client.chat_postMessage(channel=user_id, text="Subscribed to nagging notifications!")
     elif service == 'memes':
         # Steffy
