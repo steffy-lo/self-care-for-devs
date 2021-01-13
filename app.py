@@ -25,9 +25,11 @@ def subscribe():
     service = data.get('text')
     if service == 'stretch':
         client.chat_postMessage(channel=user_id, text="Subscribed to stretch notifications!")
+        subscribe_stretch()
     elif service == 'nagging':
         # Victoria
         raise NotImplemented
+        client.chat_postMessage(channel=user_id, text="Subscribed to nagging notifications!")
     elif service == 'memes':
         # Steffy
         raise NotImplemented
@@ -43,6 +45,9 @@ def subscribe():
     else:
         client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your command.")
     return Response(), 200
+
+# Sends notifications to stretch once every hour, with helpful infographics to follow
+def subscribe_stretch():
 
 
 if __name__ == "__main__":
