@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 import requests
 from threading import Thread
 import random
+import json
 
 DEBUG = True  # change to false if you want to prevent server from reloading
 
@@ -107,6 +108,8 @@ def message(payload):
             subscribe_nagging(channel_id)  # re-schedule a new nagging message once a nagging message is sent
         elif any(d['text'] == text for d in WATER_MESSAGES):
             subscribe_water(channel_id)
+        elif text == "Quote Of The Day!":
+            subscribe_motivational_quotes(channel_id)
         elif text == "Keep Calm and Have a Meme":
             schedule_meme_notification(channel_id)
 
@@ -125,6 +128,8 @@ def subscribe():
     elif service == 'water':
         client.chat_postMessage(channel=user_id, text="Subscribed to water notifications!")
         subscribe_water(user_id)
+    elif service == 'motivational-quotes':
+         client.chat_postMessage(channel=user_id, text="Subscribed to motivational-quotes notifications!")
     elif service == 'memes':
         client.chat_postMessage(channel=user_id, text="Subscribed to memes notifications!")
         thr = Thread(target=schedule_meme_notification, args=[user_id])
@@ -132,9 +137,6 @@ def subscribe():
         return Response(), 200
     elif service == 'eye-care':
         # Steffy
-        raise NotImplemented
-    elif service == 'motivational-quotes':
-        # Thulie
         raise NotImplemented
     else:
         client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your command.")
@@ -186,6 +188,24 @@ def subscribe_water(user):
     water = random.choice(WATER_MESSAGES)
     post_at = (datetime.now() + timedelta(hours=2)).timestamp()
     client.chat_scheduleMessage(channel=user, text=water.get('text'), post_at=str(post_at))
+    
+#motivational Quotes
+def subscribe_quotes(user):
+    req = requests.get("http://famous-quotes.uk/api.php?id=random&minpop=80")
+    json = req.json()
+    quotes = "Quote Of The Day!\n" = json[0][1]
+    current_datetime = datetime.now()
+    current_year = current_datetime.year
+    current_month = current_datetime.month
+    current_day = current_datetime.day
+    
+    #time of the day to be posted
+    post = datetime(year=current_year, month=current_month, day = current_day + 1, hour = 7)
+    post_at = post.timestamp()
+    client.chat_scheduleMessage(channel=user, text=quotes ,post_at = str(post))
+    
+    
+    
 
 
 @app.route('/help', methods=['POST'])
