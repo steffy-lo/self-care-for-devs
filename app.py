@@ -86,7 +86,7 @@ WATER_MESSAGES = [
     {
         'text': 'Lubricate your shock absorbing joints by drinking H2O, assist yor body to prevent joint pains'},
     {
-        'text': 'A beautiful skin a lovely smile can be maintained by drinking water, Keep yourself Hydrated.}
+        'text': 'A beautiful skin a lovely smile can be maintained by drinking water, Keep yourself Hydrated.'}
         
 ]            
     
