@@ -19,26 +19,36 @@ client = slack.WebClient(token=os.environ['SLACK_TOKEN'])
 BOT_ID = client.api_call("auth.test")['user_id']
 
 STRETCH_MESSAGES = [
-    {'text': 'It\'s stretching time! <https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch7_uzyfkp.jpg>'},
-    {'text': 'Another stretching time! <https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch5_k2j8gq.png>'},
-    {'text': 'Time to stretch! Get up and stretch! <https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch6_emvfa7.jpg>'},
-    {'text': 'Do you know that stretching improves circulation? So let\'s do it! <https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch10_kead0s.png>'},
-    {'text': 'Let\'s stretch once an hour! <https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch9_ve3p6y.jpg>'},
-    {'text': 'A healthy developer always stretches! <https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch8_c3j5ab.jpg>'},
-    {'text': 'Stretch for better health and productivity! <https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch2_nddrup.jpg>'},
-    {'text': 'Stretching time! It only takes 2 minutes! <https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch3_zypmtz.jpg>'},
-    {'text': 'A 2-minute stretch every hour can make a huge difference on your health! <https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch4_w2bd87.jpg>'},
-    {'text': 'Time to relax and have a nice stretch! <https://res.cloudinary.com/viclo2606/image/upload/v1610554470/Stretch/stretch1_swod3r.png>'}
+    {'text': 'It\'s stretching time!',
+     'attachment': 'https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch7_uzyfkp.jpg'},
+    {'text': 'Another stretching time!',
+     'attachment': 'https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch5_k2j8gq.png'},
+    {'text': 'Time to stretch! Get up and stretch!',
+     'attachment': 'https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch6_emvfa7.jpg'},
+    {'text': 'Do you know that stretching improves circulation? So let\'s do it!',
+     'attachment': 'https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch10_kead0s.png'},
+    {'text': 'Let\'s stretch once an hour!',
+     'attachment': 'https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch9_ve3p6y.jpg'},
+    {'text': 'A healthy developer always stretches!',
+     'attachment': 'https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch8_c3j5ab.jpg>'},
+    {'text': 'Stretch for better health and productivity!',
+     'attachment': 'https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch2_nddrup.jpg'},
+    {'text': 'Stretching time! It only takes 2 minutes!',
+     'attachment': 'https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch3_zypmtz.jpg'},
+    {'text': 'A 2-minute stretch every hour can make a huge difference on your health!',
+     'attachment': 'https://res.cloudinary.com/viclo2606/image/upload/v1610554469/Stretch/stretch4_w2bd87.jpg'},
+    {'text': 'Time to relax and have a nice stretch!',
+     'attachment': 'https://res.cloudinary.com/viclo2606/image/upload/v1610554470/Stretch/stretch1_swod3r.png'}
 ]
 
 
 @slack_event_adapter.on('message')
 def message(payload):
     event = payload.get('event', {})
-    user_id = event.get('user')
+    channel_id = event.get('channel')
     text = event.get('text')
-    if text in STRETCH_MESSAGES:
-        subscribe_stretch(user_id)  # re-schedule a new stretch message once a stretch message is sent
+    if any(d['text'] == text for d in STRETCH_MESSAGES):
+        subscribe_stretch(channel_id)  # re-schedule a new stretch message once a stretch message is sent
 
 
 @app.route('/subscribe', methods=['POST'])
@@ -72,8 +82,14 @@ def subscribe():
 # Sends notifications to stretch once every hour
 def subscribe_stretch(user):
     stretch = random.choice(STRETCH_MESSAGES)
-    client.chat_scheduleMessage(channel=user, text=stretch.text,
-                                post_at=(datetime.now() + timedelta(hours=1)).timestamp())
+    post_at = (datetime.now() + timedelta(seconds=20)).timestamp()
+    print('POSTED NEW STRETCH')
+    client.chat_scheduleMessage(channel=user, text=stretch.get('text'), post_at=post_at, attachments=[
+        {
+            "fallback": "Stretching Infographic",
+            "image_url": stretch.get('attachment')
+        }
+    ])
 
 
 if __name__ == "__main__":
