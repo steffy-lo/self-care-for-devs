@@ -129,9 +129,100 @@ def subscribe_stretch(user):
 def subscribe_nagging(user):
     nagging = random.choice(NAGGING_MESSAGES)
     random_seconds = random.randint(1800, 10800)  # interval between 30 minutes (1800) to 3 hours (10800)
-    print(random_seconds)
     post_at = (datetime.now() + timedelta(seconds=random_seconds)).timestamp()
     client.chat_scheduleMessage(channel=user, text=nagging.get('text'), post_at=post_at)
+
+
+@app.route('/help', methods=['POST'])
+def help_command():
+    data = request.form
+    user_id = data.get('user_id')
+    help_text = [
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*SLASH COMMANDS* \n*/todo*: returns task list"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*/todo [task, date]*: adds a task with deadline date"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*/done [task]*: marks a task as completed"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*/subscribe [service]*: subscribe to a specified service to receive notifications"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*/unsubscribe [service]*: unsubscribe to a specified service to stop notifications"
+                }
+            },
+            {
+                "type": "divider"
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*SERVICES* \n*motivational-quotes*: sends a quote every morning"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*eye-care*: sends a eye break notification every 30 mins, with helpful infographics"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*stretch*: sends a notification to stretch every hour, with helpful infographics"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*water*: sends reminder to drink water every 2 hours"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*memes*: sends programming-related memes every 3 hours to brighten the day"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "*nagging*: sends reminders on healthy habits like posture, screen brightness, stand up, "
+                            "etc. "
+                }
+            }
+        ]
+
+    client.chat_postMessage(channel=user_id, blocks=help_text)
+    return Response(), 200
 
 
 if __name__ == "__main__":
