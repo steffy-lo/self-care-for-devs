@@ -162,7 +162,7 @@ def subscribe_nagging(user):
 #SEND WATER NOTIFICATIONS EVERY 2 HOURS
 def subscribe_water(user):
     water = random.choice(WATER_MESSAGES)
-    post_at = (datetime.now() + timedelta(hours=2))
+    post_at = (datetime.now() + timedelta(hours=2)).timestamp()
     client.chat_scheduleMessage(channel=user, text=water.get('text'), post_at=post_at)        
         
 @app.route('/help', methods=['POST'])
