@@ -51,7 +51,7 @@ NAGGING_MESSAGES = [
     {
         'text': 'For better eye health, research recommends the 20/20 rule. Every 20 minutes on the screen, look far for 20 seconds.'},
     {
-        'text': 'It\'s easy to get absorbed into work and forgot about good posture. But this increases the risk of muscle strain, neck and back pain. Check your poster every few minutes!'},
+        'text': 'It\'s easy to get absorbed into work and forgot about good posture. But this increases the risk of muscle strain, neck and back pain. Check your posture every few minutes!'},
     {
         'text': 'Just a friendly reminder to check your posture. Don\'t strain your neck forward and make sure the screen is at least 30cm away from you.'},
     {'text': 'Have you been sitting too long? How about we stand up, walk to get some water and stretch a little?'},
