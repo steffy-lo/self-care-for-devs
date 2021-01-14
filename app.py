@@ -144,7 +144,7 @@ def subscribe():
 def schedule_meme_notification(user_id):
     image_url = get_meme()
     post_at = (datetime.now() + timedelta(seconds=40)).timestamp()
-    client.chat_scheduleMessage(channel=user_id, post_at=post_at, text="Keep Calm and Have a Meme", attachments=[
+    client.chat_scheduleMessage(channel=user_id, post_at=str(post_at), text="Keep Calm and Have a Meme", attachments=[
         {
             "fallback": "Programming Memes",
             "image_url": image_url,
@@ -165,7 +165,7 @@ def get_meme():
 def subscribe_stretch(user):
     stretch = random.choice(STRETCH_MESSAGES)
     post_at = (datetime.now() + timedelta(seconds=20)).timestamp()
-    client.chat_scheduleMessage(channel=user, text=stretch.get('text'), post_at=post_at, attachments=[
+    client.chat_scheduleMessage(channel=user, text=stretch.get('text'), post_at=str(post_at), attachments=[
         {
             "fallback": "Stretching Infographic",
             "image_url": stretch.get('attachment')
@@ -178,14 +178,14 @@ def subscribe_nagging(user):
     nagging = random.choice(NAGGING_MESSAGES)
     random_seconds = random.randint(1800, 10800)  # interval between 30 minutes (1800) to 3 hours (10800)
     post_at = (datetime.now() + timedelta(seconds=random_seconds)).timestamp()
-    client.chat_scheduleMessage(channel=user, text=nagging.get('text'), post_at=post_at)
+    client.chat_scheduleMessage(channel=user, text=nagging.get('text'), post_at=str(post_at))
 
 
 # SEND WATER NOTIFICATIONS EVERY 2 HOURS
 def subscribe_water(user):
     water = random.choice(WATER_MESSAGES)
     post_at = (datetime.now() + timedelta(hours=2)).timestamp()
-    client.chat_scheduleMessage(channel=user, text=water.get('text'), post_at=post_at)
+    client.chat_scheduleMessage(channel=user, text=water.get('text'), post_at=str(post_at))
 
 
 @app.route('/help', methods=['POST'])
