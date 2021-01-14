@@ -92,6 +92,34 @@ WATER_MESSAGES = [
 
 ]
 
+EYE_MESSAGES = [
+    {
+        'text': 'Give your eyes a break! Time to practice the 20-20-20 rule.',
+        'image_url': 'https://res.cloudinary.com/dx0ws0ikf/image/upload/v1610635473/eye-care-1_gknc2k.jpg'
+    },
+    {
+        'text': 'Did you know some these facts? How about taking a break from the screen?',
+        'image_url': 'https://res.cloudinary.com/dx0ws0ikf/image/upload/v1610635473/eye-care-6_gyqkxq.png'
+    },
+    {
+        'text': 'Follow some of these eye exercises to help reduce eye strain and train your eye muscles!',
+        'image_url': 'https://res.cloudinary.com/dx0ws0ikf/image/upload/v1610635473/eye-care-3_qkq7jl.png'
+    },
+    {
+        'text': 'Practice these 8 tips for you to improve your eye health.',
+        'image_url': 'https://res.cloudinary.com/dx0ws0ikf/image/upload/v1610635474/eye-care-4_vvrrbr.jpg'
+    },
+    {
+        'text': 'Let\'s practice the 20-20-20 rule!',
+        'image_url': 'https://res.cloudinary.com/dx0ws0ikf/image/upload/v1610635473/eye-care-5_vq3bxs.jpg'
+    },
+    {
+        'text': 'Eyes getting tired? How about some eye yoga to reset them?',
+        'image_url': 'https://res.cloudinary.com/dx0ws0ikf/image/upload/v1610635473/eye-care-2_j4deez.png'
+    }
+
+]
+
 
 @slack_event_adapter.on('message')
 def message(payload):
@@ -109,6 +137,8 @@ def message(payload):
             subscribe_water(channel_id)
         elif text == "Keep Calm and Have a Meme":
             schedule_meme_notification(channel_id)
+        elif any(d['text'] == text for d in EYE_MESSAGES):
+            schedule_eye_care_notification(user_id)
 
 
 @app.route('/subscribe', methods=['POST'])
@@ -132,12 +162,25 @@ def subscribe():
         return Response(), 200
     elif service == 'eye-care':
         # Steffy
-        raise NotImplemented
+        client.chat_postMessage(channel=user_id, text="Subscribed to eye care notifications!")
+        schedule_eye_care_notification(user_id)
     elif service == 'motivational-quotes':
         # Thulie
         raise NotImplemented
     else:
         client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your command.")
+    return Response(), 200
+
+
+def schedule_eye_care_notification(user_id):
+    eye_care = random.choice(EYE_MESSAGES)
+    post_at = (datetime.now() + timedelta(seconds=40)).timestamp()
+    client.chat_scheduleMessage(channel=user_id, post_at=str(post_at), text=eye_care.get('text'), attachments=[
+        {
+            "fallback": "Eye Infographic",
+            "image_url": eye_care.get('image_url')
+        }
+    ])
     return Response(), 200
 
 
