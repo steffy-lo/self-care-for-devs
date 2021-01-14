@@ -74,6 +74,23 @@ NAGGING_MESSAGES = [
 ]
 
 
+WATER_MESSAGES = [
+    {
+        'text': 'Time to drink water - keep yourself energised,hydration is the Number 1 Rule of health nutrition.' },
+    {
+        'text': 'Hey! Time to rejuvinate your body temperature by drinking Water.'},
+    { 
+        'text': 'Hey it\'s that time again😀,keep things moving have some H2O.'},
+    {
+        'text': 'Assit your body by drinking water as an escape route from constipation.'},
+    {
+        'text': 'Lubricate your shock absorbing joints by drinking H2O, assist yor body to prevent joint pains'},
+    {
+        'text': 'A beautiful skin a lovely smile can be maintained by drinking water, Keep yourself Hydrated.}
+        
+]            
+    
+
 @slack_event_adapter.on('message')
 def message(payload):
     event = payload.get('event', {})
@@ -83,6 +100,15 @@ def message(payload):
         subscribe_stretch(channel_id)  # re-schedule a new stretch message once a stretch message is sent
     elif any(d['text'] == text for d in NAGGING_MESSAGES):
         subscribe_nagging(channel_id)  # re-schedule a new nagging message once a nagging message is sent
+        
+@slack_event_adapter.on('message')
+def message(payload):
+    event = payload.get('event', {})
+    channel_id = event.get('channel')
+    text = event.get('text')
+    if any(d['text'] == text for d in WATER_MESSAGES):
+        subscribe_water(channel_id)        
+ 
 
 
 @app.route('/subscribe', methods=['POST'])
@@ -96,14 +122,14 @@ def subscribe():
     elif service == 'nagging':
         client.chat_postMessage(channel=user_id, text="Subscribed to nagging notifications!")
         subscribe_nagging(user_id)
+    elif service == 'water':
+         client.chat_postMessage(channel=user_id, text="Subscribed to water notifications!")
+        subscribe_water(user_id)
     elif service == 'memes':
         # Steffy
         raise NotImplemented
     elif service == 'eye-break':
         # Steffy
-        raise NotImplemented
-    elif service == 'water':
-        # Thulie
         raise NotImplemented
     elif service == 'motivational-quotes':
         # Thulie
@@ -131,8 +157,14 @@ def subscribe_nagging(user):
     random_seconds = random.randint(1800, 10800)  # interval between 30 minutes (1800) to 3 hours (10800)
     post_at = (datetime.now() + timedelta(seconds=random_seconds)).timestamp()
     client.chat_scheduleMessage(channel=user, text=nagging.get('text'), post_at=post_at)
-
-
+        
+        
+#SEND WATER NOTIFICATIONS EVERY 2 HOURS
+def subscribe_water(user):
+    water = random.choice(WATER_MESSAGES)
+    post_at = (datetime.now() + timedelta(hours=2))
+    client.chat_scheduleMessage(channel=user, text=water.get('text'), post_at=post_at)        
+        
 @app.route('/help', methods=['POST'])
 def help_command():
     data = request.form
