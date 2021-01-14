@@ -41,6 +41,38 @@ STRETCH_MESSAGES = [
      'attachment': 'https://res.cloudinary.com/viclo2606/image/upload/v1610554470/Stretch/stretch1_swod3r.png'}
 ]
 
+NAGGING_MESSAGES = [
+    {
+        'text': 'Are you hungry? Let\'s have some healthy snacks! Do you know almonds are great snacks? They lower bad cholesterol and contain vitamin E, magnesium, potassium and calcium!'},
+    {
+        'text': 'If you are always looking at screen, always remember to take short eye breaks every 30 minutes. This will prevent eye fatigues, dry eyes and blurry visions.'},
+    {
+        'text': 'Did you know that people will blink less when staring at screens? This can cause dry eyes and form tiny abrasions in your eyes. Over time, your vision may deteriorate.'},
+    {
+        'text': 'For better eye health, research recommends the 20/20 rule. Every 20 minutes on the screen, look far for 20 seconds.'},
+    {
+        'text': 'It\'s easy to get absorbed into work and forgot about good posture. But this increases the risk of muscle strain, neck and back pain. Check your poster every few minutes!'},
+    {
+        'text': 'Just a friendly reminder to check your posture. Don\'t strain your neck forward and make sure the screen is at least 30cm away from you.'},
+    {'text': 'Have you been sitting too long? How about we stand up, walk to get some water and stretch a little?'},
+    {
+        'text': 'Standing up every hour boosts energy, circulation and productivity. It only takes 5 minutes to stand and stretch. Let\'s do it!'},
+    {
+        'text': 'Is your computer screen too bright? If you feel exhausted after staring at your screen for 30 minutes, you should try lowering the screen brightness or add some lighting to reduce glare.'},
+    {
+        'text': 'Do not underestimate the benefits of water. It can immediately make you feel more energized and reduce headaches that comes from fatigue. Drink water!'},
+    {
+        'text': 'Replace your caffeine intake with water. Water provide tons more health benefits than caffeine. A healthy developer should drink more water!'},
+    {
+        'text': 'Did you know that clutter on our desks can unconsciously lead to stress and unproductivity? Keep your desks clean and tidy to be an efficient developer!'},
+    {
+        'text': 'Don\'t skip meals! You need to feed your body well so that it can function well. Your brain will thank you for feeding it well with nutritious foods.'},
+    {
+        'text': 'Some amazing foods to boost memory and brain activity are blueberries, nuts, broccoli, salmon, eggs and avocado. Eat more of them for happy brains!'},
+    {
+        'text': 'Feeling a little stressed? Take 5 minutes to breathe deeply, close your eyes and meditate. You will feel calmer, more grounded and less stressed.'},
+]
+
 
 @slack_event_adapter.on('message')
 def message(payload):
@@ -49,6 +81,8 @@ def message(payload):
     text = event.get('text')
     if any(d['text'] == text for d in STRETCH_MESSAGES):
         subscribe_stretch(channel_id)  # re-schedule a new stretch message once a stretch message is sent
+    elif any(d['text'] == text for d in NAGGING_MESSAGES):
+        subscribe_nagging(channel_id)  # re-schedule a new nagging message once a nagging message is sent
 
 
 @app.route('/subscribe', methods=['POST'])
@@ -60,8 +94,8 @@ def subscribe():
         client.chat_postMessage(channel=user_id, text="Subscribed to stretch notifications!")
         subscribe_stretch(user_id)
     elif service == 'nagging':
-        # Victoria
         client.chat_postMessage(channel=user_id, text="Subscribed to nagging notifications!")
+        subscribe_nagging(user_id)
     elif service == 'memes':
         # Steffy
         raise NotImplemented
@@ -83,13 +117,21 @@ def subscribe():
 def subscribe_stretch(user):
     stretch = random.choice(STRETCH_MESSAGES)
     post_at = (datetime.now() + timedelta(seconds=20)).timestamp()
-    print('POSTED NEW STRETCH')
     client.chat_scheduleMessage(channel=user, text=stretch.get('text'), post_at=post_at, attachments=[
         {
             "fallback": "Stretching Infographic",
             "image_url": stretch.get('attachment')
         }
     ])
+
+
+# Sends a nag at random intervals
+def subscribe_nagging(user):
+    nagging = random.choice(NAGGING_MESSAGES)
+    random_seconds = random.randint(1800, 10800)  # interval between 30 minutes (1800) to 3 hours (10800)
+    print(random_seconds)
+    post_at = (datetime.now() + timedelta(seconds=random_seconds)).timestamp()
+    client.chat_scheduleMessage(channel=user, text=nagging.get('text'), post_at=post_at)
 
 
 if __name__ == "__main__":
