@@ -3,12 +3,14 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from flask import Flask, request, Response
+from slack.errors import SlackApiError
 from slackeventsapi import SlackEventAdapter
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 import requests
 from threading import Thread
 import random
+import re
 
 DEBUG = True  # change to false if you want to prevent server from reloading
 
@@ -143,6 +145,20 @@ def message(payload):
             schedule_eye_care_notification(user_id)
 
 
+@app.route('/todo', methods=['POST'])
+def todo():
+    data = request.form
+    user_id = data.get('user_id')
+    text = data.get('text')
+    if text == '':
+        list_todo(user_id)
+    elif re.search("\\d\\d:\\d\\d", text[-5:]):
+        schedule_task(user_id, text)
+    else:
+        # Bad request
+        return Response(), 400
+
+
 @app.route('/subscribe', methods=['POST'])
 def subscribe():
     data = request.form
@@ -171,6 +187,45 @@ def subscribe():
     else:
         client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your command.")
     return Response(), 200
+
+
+def schedule_task(user_id, text):
+    time = text[-5:]
+    task = "[task] " + text[:-5] + " by " + time
+    task_reminder = "[task reminder] " + text[:-5] + " by " + time
+
+    today = datetime.today()
+
+    deadline = datetime.combine(today, datetime.strptime(time, '%H:%M').time())
+    reminder = (deadline - timedelta(hours=2)).timestamp()
+    client.chat_scheduleMessage(channel=user_id, text=task_reminder, post_at=str(reminder))
+    client.chat_scheduleMessage(channel=user_id, text=task, post_at=str(deadline))
+
+
+def list_todo(user_id):
+    try:
+        # Call the chat.scheduledMessages.list method using the WebClient
+        result = client.chat_scheduledMessages_list()
+        if len(result["scheduled_messages"]) == 0:
+            client.chat_postMessage(channel=user_id, text="There's currently nothing on your to-do list 😀")
+            return Response(), 200
+        else:
+            blocks = []
+            # Print scheduled messages
+            for msg in result["scheduled_messages"]:
+                if msg["text"][:6] == "[task]":
+                    blocks.append({
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": msg["text"]
+                        }
+                    })
+
+            client.chat_postMessage(channel=user_id, blocks=blocks)
+            return Response(), 200
+    except SlackApiError as e:
+        Response(str(e)), 500
 
 
 def schedule_eye_care_notification(user_id):
