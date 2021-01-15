@@ -9,7 +9,6 @@ from bs4 import BeautifulSoup
 import requests
 from threading import Thread
 import random
-import json
 
 DEBUG = True  # change to false if you want to prevent server from reloading
 
@@ -93,6 +92,34 @@ WATER_MESSAGES = [
 
 ]
 
+EYE_MESSAGES = [
+    {
+        'text': 'Give your eyes a break! Time to practice the 20-20-20 rule.',
+        'image_url': 'https://res.cloudinary.com/dx0ws0ikf/image/upload/v1610635473/eye-care-1_gknc2k.jpg'
+    },
+    {
+        'text': 'Did you know some these facts? How about taking a break from the screen?',
+        'image_url': 'https://res.cloudinary.com/dx0ws0ikf/image/upload/v1610635473/eye-care-6_gyqkxq.png'
+    },
+    {
+        'text': 'Follow some of these eye exercises to help reduce eye strain and train your eye muscles!',
+        'image_url': 'https://res.cloudinary.com/dx0ws0ikf/image/upload/v1610635473/eye-care-3_qkq7jl.png'
+    },
+    {
+        'text': 'Practice these 8 tips for you to improve your eye health.',
+        'image_url': 'https://res.cloudinary.com/dx0ws0ikf/image/upload/v1610635474/eye-care-4_vvrrbr.jpg'
+    },
+    {
+        'text': 'Let\'s practice the 20-20-20 rule!',
+        'image_url': 'https://res.cloudinary.com/dx0ws0ikf/image/upload/v1610635473/eye-care-5_vq3bxs.jpg'
+    },
+    {
+        'text': 'Eyes getting tired? How about some eye yoga to reset them?',
+        'image_url': 'https://res.cloudinary.com/dx0ws0ikf/image/upload/v1610635473/eye-care-2_j4deez.png'
+    }
+
+]
+
 
 @slack_event_adapter.on('message')
 def message(payload):
@@ -108,10 +135,12 @@ def message(payload):
             subscribe_nagging(channel_id)  # re-schedule a new nagging message once a nagging message is sent
         elif any(d['text'] == text for d in WATER_MESSAGES):
             subscribe_water(channel_id)
-        elif text == "Quote Of The Day!":
-            subscribe_motivational_quotes(channel_id)
+        elif "Quote Of The Day!" in text:
+            subscribe_quotes(channel_id)
         elif text == "Keep Calm and Have a Meme":
             schedule_meme_notification(channel_id)
+        elif any(d['text'] == text for d in EYE_MESSAGES):
+            schedule_eye_care_notification(user_id)
 
 
 @app.route('/subscribe', methods=['POST'])
@@ -128,18 +157,31 @@ def subscribe():
     elif service == 'water':
         client.chat_postMessage(channel=user_id, text="Subscribed to water notifications!")
         subscribe_water(user_id)
-    elif service == 'motivational-quotes':
-         client.chat_postMessage(channel=user_id, text="Subscribed to motivational-quotes notifications!")
+    elif service == 'quotes':
+        client.chat_postMessage(channel=user_id, text="Subscribed to quotes notifications!")
+        subscribe_quotes(user_id)
     elif service == 'memes':
         client.chat_postMessage(channel=user_id, text="Subscribed to memes notifications!")
         thr = Thread(target=schedule_meme_notification, args=[user_id])
         thr.start()
         return Response(), 200
     elif service == 'eye-care':
-        # Steffy
-        raise NotImplemented
+        client.chat_postMessage(channel=user_id, text="Subscribed to eye care notifications!")
+        schedule_eye_care_notification(user_id)
     else:
         client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your command.")
+    return Response(), 200
+
+
+def schedule_eye_care_notification(user_id):
+    eye_care = random.choice(EYE_MESSAGES)
+    post_at = (datetime.now() + timedelta(seconds=40)).timestamp()
+    client.chat_scheduleMessage(channel=user_id, post_at=str(post_at), text=eye_care.get('text'), attachments=[
+        {
+            "fallback": "Eye Infographic",
+            "image_url": eye_care.get('image_url')
+        }
+    ])
     return Response(), 200
 
 
@@ -188,24 +230,22 @@ def subscribe_water(user):
     water = random.choice(WATER_MESSAGES)
     post_at = (datetime.now() + timedelta(hours=2)).timestamp()
     client.chat_scheduleMessage(channel=user, text=water.get('text'), post_at=str(post_at))
-    
-#motivational Quotes
+
+
+# motivational Quotes
 def subscribe_quotes(user):
     req = requests.get("http://famous-quotes.uk/api.php?id=random&minpop=80")
     json = req.json()
-    quotes = "Quote Of The Day!\n" = json[0][1]
+    quotes = "Quote Of The Day!\n" + json[0][1]
     current_datetime = datetime.now()
     current_year = current_datetime.year
     current_month = current_datetime.month
     current_day = current_datetime.day
     
-    #time of the day to be posted
-    post = datetime(year=current_year, month=current_month, day = current_day + 1, hour = 7)
+    # time of the day to be posted
+    post = datetime(year=current_year, month=current_month, day=current_day + 1, hour=7)
     post_at = post.timestamp()
-    client.chat_scheduleMessage(channel=user, text=quotes ,post_at = str(post))
-    
-    
-    
+    client.chat_scheduleMessage(channel=user, text=quotes, post_at=str(post_at))
 
 
 @app.route('/help', methods=['POST'])
@@ -255,7 +295,7 @@ def help_command():
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": "*SERVICES* \n*motivational-quotes*: sends a quote every morning"
+                "text": "*SERVICES* \n*quotes*: sends a quote every morning"
             }
         },
         {
