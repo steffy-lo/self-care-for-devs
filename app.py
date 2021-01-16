@@ -84,7 +84,7 @@ WATER_MESSAGES = [
     {
         'text': 'Hey! Time to rejuvenate your body temperature by drinking Water.'},
     {
-        'text': 'Hey it\'s that time again 😀,keep things moving have some H2O.'},
+        'text': 'Hey it\'s that time again :grinning:,keep things moving have some H2O.'},
     {
         'text': 'Assist your body by drinking water as an escape route from constipation.'},
     {
@@ -189,6 +189,54 @@ def subscribe():
     return Response(), 200
 
 
+@app.route('/unsubscribe', methods=['POST'])
+def unsubscribe():
+    data = request.form
+    user_id = data.get('user_id')
+    service = data.get('text')
+    result = client.chat_scheduledMessages_list()
+    SERVICES = ['water', 'stretch', 'quotes', 'eye-care', 'memes', 'nagging']
+    if len(result["scheduled_messages"]) == 0:
+        client.chat_postMessage(channel=user_id, text="You are currently not subscribed to any service.")
+    elif service not in SERVICES or service == '':
+        client.chat_postMessage(channel=user_id, text="Please specify an appropriate service to unsubscribe.")
+    else:
+        # Find scheduled message to delete
+        for msg in result["scheduled_messages"]:
+            if scheduled_exists(service, msg):
+                thr = Thread(target=unsubscribe_service, args=[service, msg, user_id])
+                thr.start()
+    return Response(), 200
+
+
+def scheduled_exists(service, msg):
+    if service == 'stretch' and any(d['text'] == msg['text'] for d in STRETCH_MESSAGES):
+        return True
+    elif service == 'nagging' and any(d['text'] == msg['text'] for d in NAGGING_MESSAGES):
+        return True
+    elif service == 'water' and any(d['text'] == msg['text'] for d in WATER_MESSAGES):
+        return True
+    elif service == 'quotes' and "Quote Of The Day!" in msg['text']:
+        return True
+    elif service == 'memes' and msg['text'] == "Keep Calm and Have a Meme":
+        return True
+    elif service == 'eye-care' and any(d['text'] == msg['text'] for d in EYE_MESSAGES):
+        return True
+    else:
+        return False
+
+
+def unsubscribe_service(service, msg, user_id):
+    try:
+        client.chat_deleteScheduledMessage(channel=msg['channel_id'], scheduled_message_id=msg['id'])
+        client.chat_postMessage(channel=user_id, text="Unsubscribed from " + service + " notifications.")
+        return Response(), 200
+    except SlackApiError as e:
+        client.chat_postMessage(channel=user_id,
+                                text="Unable to unsubscribe as notification is coming in less than a minute.")
+        return Response(str(e)), 200
+
+
 def schedule_task(user_id, text):
     time = text[-5:]
     task = "[task] " + text[:-5] + " by " + time
@@ -263,7 +311,7 @@ def get_meme():
 # Sends notifications to stretch once every hour
 def subscribe_stretch(user):
     stretch = random.choice(STRETCH_MESSAGES)
-    post_at = (datetime.now() + timedelta(seconds=20)).timestamp()
+    post_at = (datetime.now() + timedelta(hours=1)).timestamp()
     client.chat_scheduleMessage(channel=user, text=stretch.get('text'), post_at=str(post_at), attachments=[
         {
             "fallback": "Stretching Infographic",
@@ -296,7 +344,7 @@ def subscribe_quotes(user):
     current_year = current_datetime.year
     current_month = current_datetime.month
     current_day = current_datetime.day
-    
+
     # time of the day to be posted
     post = datetime(year=current_year, month=current_month, day=current_day + 1, hour=7)
     post_at = post.timestamp()
