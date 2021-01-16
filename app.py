@@ -158,6 +158,19 @@ def todo():
         # Bad request
         return Response(), 400
 
+@app.route('/done', methods=['POST'])
+def done():
+    data = request.form
+    user_id = data.get('user_id')
+    text = data.get('text')
+    for msg in client.chat_scheduledMessages_list()["scheduled_messages"]:
+        if msg["text"][:6] == "[task] " + text and text != '':
+            client.chat_deleteScheduledMessage(channel=user_id, scheduled_message_id=msg["scheduled_message_id"])
+            return Response(), 200
+    # Bad request
+    client.chat_postMessage(channel=user_id, text="Granny cannot find task " + "[" + text + "]")
+    return Response(), 400
+
 
 @app.route('/subscribe', methods=['POST'])
 def subscribe():
