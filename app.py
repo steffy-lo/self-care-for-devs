@@ -289,30 +289,39 @@ def list_todo(user_id):
         Response(str(e)), 500
 
 
+@app.route('/schedule_eye_care/<user_id>', methods=["POST"])
 def schedule_eye_care_notification(user_id):
-    eye_care = random.choice(EYE_MESSAGES)
-    post_at = (datetime.now() + timedelta(seconds=40)).timestamp()
-    client.chat_scheduleMessage(channel=user_id, post_at=str(post_at), text=eye_care.get('text'), attachments=[
-        {
-            "fallback": "Eye Infographic",
-            "image_url": eye_care.get('image_url')
-        }
-    ])
-    return Response(), 200
+    if user_id:
+        eye_care = random.choice(EYE_MESSAGES)
+        post_at = (datetime.now() + timedelta(seconds=40)).timestamp()
+        client.chat_scheduleMessage(channel=user_id, post_at=str(post_at), text=eye_care.get('text'), attachments=[
+            {
+                "fallback": "Eye Infographic",
+                "image_url": eye_care.get('image_url')
+            }
+        ])
+    else:
+        client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
 
 
+@app.route('/schedule_meme/<user_id>', methods=["POST"])
 def schedule_meme_notification(user_id):
-    image_url = get_meme()
-    post_at = (datetime.now() + timedelta(seconds=40)).timestamp()
-    client.chat_scheduleMessage(channel=user_id, post_at=str(post_at), text="Keep Calm and Have a Meme", attachments=[
-        {
-            "fallback": "Programming Memes",
-            "image_url": image_url,
-        }
-    ])
-    return Response(), 200
+    if user_id:
+        image_url = get_meme()
+        post_at = (datetime.now() + timedelta(seconds=40)).timestamp()
+        client.chat_scheduleMessage(channel=user_id, post_at=str(post_at), text="Keep Calm and Have a Meme", attachments=[
+            {
+                "fallback": "Programming Memes",
+                "image_url": image_url,
+            }
+        ])
+        return Response(), 200
+    else:
+        client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
+        return Response(), 200
 
 
+@app.route('/meme', methods=["GET"])
 def get_meme():
     headers = {'User-Agent': 'Mozilla/5.0'}
     response = requests.get('https://www.reddit.com/r/ProgrammerHumor', headers=headers)
@@ -321,47 +330,63 @@ def get_meme():
     return str(image.attrs['src'])
 
 
+@app.route('/schedule_stretch/<user_id>', methods=["POST"])
 # Sends notifications to stretch once every hour
-def subscribe_stretch(user):
-    stretch = random.choice(STRETCH_MESSAGES)
-    post_at = (datetime.now() + timedelta(hours=1)).timestamp()
-    client.chat_scheduleMessage(channel=user, text=stretch.get('text'), post_at=str(post_at), attachments=[
-        {
-            "fallback": "Stretching Infographic",
-            "image_url": stretch.get('attachment')
-        }
-    ])
+def subscribe_stretch(user_id):
+    if user_id:
+        stretch = random.choice(STRETCH_MESSAGES)
+        post_at = (datetime.now() + timedelta(hours=1)).timestamp()
+        client.chat_scheduleMessage(channel=user_id, text=stretch.get('text'), post_at=str(post_at), attachments=[
+            {
+                "fallback": "Stretching Infographic",
+                "image_url": stretch.get('attachment')
+            }
+        ])
+    else:
+        client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
 
 
+@app.route('/schedule_nagging/<user_id>', methods=["POST"])
 # Sends a nag at random intervals
-def subscribe_nagging(user):
-    nagging = random.choice(NAGGING_MESSAGES)
-    random_seconds = random.randint(1800, 10800)  # interval between 30 minutes (1800) to 3 hours (10800)
-    post_at = (datetime.now() + timedelta(seconds=random_seconds)).timestamp()
-    client.chat_scheduleMessage(channel=user, text=nagging.get('text'), post_at=str(post_at))
+def subscribe_nagging(user_id):
+    if user_id:
+        nagging = random.choice(NAGGING_MESSAGES)
+        random_seconds = random.randint(1800, 10800)  # interval between 30 minutes (1800) to 3 hours (10800)
+        post_at = (datetime.now() + timedelta(seconds=random_seconds)).timestamp()
+        client.chat_scheduleMessage(channel=user_id, text=nagging.get('text'), post_at=str(post_at))
+    else:
+        client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
 
 
+@app.route('/schedule_water/<user_id>', methods=["POST"])
 # SEND WATER NOTIFICATIONS EVERY 2 HOURS
-def subscribe_water(user):
-    water = random.choice(WATER_MESSAGES)
-    post_at = (datetime.now() + timedelta(hours=2)).timestamp()
-    client.chat_scheduleMessage(channel=user, text=water.get('text'), post_at=str(post_at))
+def subscribe_water(user_id):
+    if user_id:
+        water = random.choice(WATER_MESSAGES)
+        post_at = (datetime.now() + timedelta(hours=2)).timestamp()
+        client.chat_scheduleMessage(channel=user_id, text=water.get('text'), post_at=str(post_at))
+    else:
+        client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
 
 
+@app.route('/schedule_quotes/<user_id>', methods=["POST"])
 # motivational Quotes
-def subscribe_quotes(user):
-    req = requests.get("http://famous-quotes.uk/api.php?id=random&minpop=80")
-    json = req.json()
-    quotes = "Quote Of The Day!\n" + json[0][1]
-    current_datetime = datetime.now()
-    current_year = current_datetime.year
-    current_month = current_datetime.month
-    current_day = current_datetime.day
+def subscribe_quotes(user_id):
+    if user_id:
+        req = requests.get("http://famous-quotes.uk/api.php?id=random&minpop=80")
+        json = req.json()
+        quotes = "Quote Of The Day!\n" + json[0][1]
+        current_datetime = datetime.now()
+        current_year = current_datetime.year
+        current_month = current_datetime.month
+        current_day = current_datetime.day
 
-    # time of the day to be posted
-    post = datetime(year=current_year, month=current_month, day=current_day + 1, hour=7)
-    post_at = post.timestamp()
-    client.chat_scheduleMessage(channel=user, text=quotes, post_at=str(post_at))
+        # time of the day to be posted
+        post = datetime(year=current_year, month=current_month, day=current_day + 1, hour=7)
+        post_at = post.timestamp()
+        client.chat_scheduleMessage(channel=user_id, text=quotes, post_at=str(post_at))
+    else:
+        client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
 
 
 @app.route('/help', methods=['POST'])
