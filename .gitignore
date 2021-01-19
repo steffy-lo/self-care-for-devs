@@ -2,3 +2,4 @@ test.py
 .env
 .idea
 /venv
+.vercel

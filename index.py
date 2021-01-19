@@ -152,6 +152,11 @@ def message(payload):
             schedule_eye_care_notification(channel_id)
 
 
+@app.route('/', methods=['GET'])
+def home():
+    return 'root'
+
+
 @app.route('/todo', methods=['POST'])
 def todo():
     data = request.form
