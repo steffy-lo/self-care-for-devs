@@ -122,6 +122,13 @@ EYE_MESSAGES = [
 
 ]
 
+# subscribe intervals or schedule
+quote_time = 7
+eye_care_interval = 0.5
+stretch_interval = 1
+water_interval = 2
+meme_interval = 3
+
 
 @slack_event_adapter.on('message')
 def message(payload):
@@ -142,7 +149,7 @@ def message(payload):
         elif text == "Keep Calm and Have a Meme":
             schedule_meme_notification(channel_id)
         elif any(d['text'] == text for d in EYE_MESSAGES):
-            schedule_eye_care_notification(user_id)
+            schedule_eye_care_notification(channel_id)
 
 
 @app.route('/todo', methods=['POST'])
@@ -151,13 +158,16 @@ def todo():
     user_id = data.get('user_id')
     text = data.get('text')
     if text == '':
-        list_todo(user_id)
+        return list_todo(user_id)
     elif re.search("\\d\\d:\\d\\d", text[-5:]):
-        schedule_task(user_id, text)
+        return schedule_task(user_id, text)
     else:
-        client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
-        return Response("Invalid request. Please check your request format and try again."), 200
-    return Response(), 200
+        try:
+            client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
+            return Response("Invalid request. Please check your request format and try again."), 200
+        except SlackApiError as e:
+            return Response(str(e)), 500
+
 
 @app.route('/done', methods=['POST'])
 def done():
@@ -166,16 +176,25 @@ def done():
     text = data.get('text')
     task_deleted = False
     for msg in client.chat_scheduledMessages_list()["scheduled_messages"]:
-        print(msg["text"][:-9])
         if msg["text"][:-9] == "[task] " + text and text != '':
-            client.chat_deleteScheduledMessage(channel=user_id, scheduled_message_id=msg["id"])
-            task_deleted = True
+            try:
+                client.chat_deleteScheduledMessage(channel=user_id, scheduled_message_id=msg["id"])
+                task_deleted = True
+            except SlackApiError as e:
+                return Response(str(e)), 500
         if msg["text"][:-9] == "[task reminder] " + text and text != '':
-            client.chat_deleteScheduledMessage(channel=user_id, scheduled_message_id=msg["id"])
+            try:
+                client.chat_deleteScheduledMessage(channel=user_id, scheduled_message_id=msg["id"])
+            except SlackApiError as e:
+                return Response(str(e)), 500
+
     # Bad request
     if not task_deleted:
-        client.chat_postMessage(channel=user_id, text="Granny cannot find task " + "[" + text + "]")
-        return Response("Invalid task name. Please try again."), 200
+        try:
+            client.chat_postMessage(channel=user_id, text="Granny cannot find task " + "[" + text + "]")
+            return Response("Invalid task name. Please try again."), 200
+        except SlackApiError as e:
+            return Response(str(e)), 500
     return Response(), 200
 
 
@@ -217,10 +236,18 @@ def unsubscribe():
     service = data.get('text')
     result = client.chat_scheduledMessages_list()
     SERVICES = ['water', 'stretch', 'quotes', 'eye-care', 'memes', 'nagging']
-    if len(result["scheduled_messages"]) == 0:
-        client.chat_postMessage(channel=user_id, text="You are currently not subscribed to any service.")
-    elif service not in SERVICES or service == '':
-        client.chat_postMessage(channel=user_id, text="Please specify an appropriate service to unsubscribe.")
+
+    if service not in SERVICES or service == '':
+        try:
+            client.chat_postMessage(channel=user_id, text="Please specify an appropriate service to unsubscribe.")
+        except SlackApiError as e:
+            return Response(str(e)), 500
+
+    elif len(result["scheduled_messages"]) == 0:
+        try:
+            client.chat_postMessage(channel=user_id, text="You are currently not subscribed to any service.")
+        except SlackApiError as e:
+            return Response(str(e)), 500
     else:
         deleting = False
         # Find scheduled message to delete
@@ -257,8 +284,6 @@ def unsubscribe_service(service, msg, user_id):
         client.chat_postMessage(channel=user_id, text="Unsubscribed from " + service + " notifications.")
         return Response(), 200
     except SlackApiError as e:
-        client.chat_postMessage(channel=user_id,
-                                text="Unable to unsubscribe as notification is coming in less than a minute.")
         return Response(str(e)), 200
 
 
@@ -271,8 +296,21 @@ def schedule_task(user_id, text):
 
     deadline = datetime.combine(today, datetime.strptime(time, '%H:%M').time())
     reminder = (deadline - timedelta(minutes=30)).timestamp()
-    client.chat_scheduleMessage(channel=user_id, text=task_reminder, post_at=str(reminder))
-    client.chat_scheduleMessage(channel=user_id, text=task, post_at=str(deadline.timestamp()))
+    if reminder < (datetime.now() + timedelta(minutes=30)).timestamp():
+        try:
+            client.chat_postMessage(channel=user_id,
+                                    text="Unable to set deadline as it is too early or in the past.")
+            return Response(
+                "Invalid deadline. Please make sure that your deadline is more than 30 minutes in the future."), 200
+        except SlackApiError as e:
+            return Response(str(e)), 500
+
+    try:
+        client.chat_scheduleMessage(channel=user_id, text=task_reminder, post_at=str(reminder))
+        client.chat_scheduleMessage(channel=user_id, text=task, post_at=str(deadline.timestamp()))
+        return Response(), 200
+    except SlackApiError as e:
+        return Response(str(e)), 500
 
 
 def list_todo(user_id):
@@ -280,8 +318,11 @@ def list_todo(user_id):
         # Call the chat.scheduledMessages.list method using the WebClient
         result = client.chat_scheduledMessages_list()
         if len(result["scheduled_messages"]) == 0:
-            client.chat_postMessage(channel=user_id, text="There's currently nothing on your to-do list 😀")
-            return Response(), 200
+            try:
+                client.chat_postMessage(channel=user_id, text="There's currently nothing on your to-do list 😀")
+                return Response(), 200
+            except SlackApiError as e:
+                return Response(str(e)), 500
         else:
             blocks = []
             # Print scheduled messages
@@ -294,44 +335,46 @@ def list_todo(user_id):
                             "text": msg["text"]
                         }
                     })
-
-            client.chat_postMessage(channel=user_id, blocks=blocks)
-            return Response(), 200
+            try:
+                client.chat_postMessage(channel=user_id, blocks=blocks)
+                return Response(), 200
+            except SlackApiError as e:
+                return Response(str(e)), 500
     except SlackApiError as e:
         Response(str(e)), 500
 
 
 @app.route('/schedule_eye_care/<user_id>', methods=["POST"])
 def schedule_eye_care_notification(user_id):
-    if user_id:
-        eye_care = random.choice(EYE_MESSAGES)
-        post_at = (datetime.now() + timedelta(seconds=40)).timestamp()
+    eye_care = random.choice(EYE_MESSAGES)
+    post_at = (datetime.now() + timedelta(hours=eye_care_interval)).timestamp()
+    try:
         client.chat_scheduleMessage(channel=user_id, post_at=str(post_at), text=eye_care.get('text'), attachments=[
             {
                 "fallback": "Eye Infographic",
                 "image_url": eye_care.get('image_url')
             }
         ])
-    else:
-        client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
-        return Response("Please provide a user id and try again."), 200
+        return Response("Scheduled eye care notification at " + str(post_at)), 200
+    except SlackApiError as e:
+        return Response(str(e)), 500
 
 
 @app.route('/schedule_meme/<user_id>', methods=["POST"])
 def schedule_meme_notification(user_id):
-    if user_id:
-        image_url = get_meme()
-        post_at = (datetime.now() + timedelta(seconds=40)).timestamp()
-        client.chat_scheduleMessage(channel=user_id, post_at=str(post_at), text="Keep Calm and Have a Meme", attachments=[
-            {
-                "fallback": "Programming Memes",
-                "image_url": image_url,
-            }
-        ])
-        return Response(), 200
-    else:
-        client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
-        return Response("Please provide a user id and try again."), 200
+    image_url = get_meme()
+    post_at = (datetime.now() + timedelta(hours=meme_interval)).timestamp()
+    try:
+        client.chat_scheduleMessage(channel=user_id, post_at=str(post_at), text="Keep Calm and Have a Meme",
+                                    attachments=[
+                                        {
+                                            "fallback": "Programming Memes",
+                                            "image_url": image_url,
+                                        }
+                                    ])
+        return Response("Scheduled meme notification at " + str(post_at)), 200
+    except SlackApiError as e:
+        return Response(str(e)), 500
 
 
 @app.route('/meme', methods=["GET"])
@@ -346,64 +389,119 @@ def get_meme():
 @app.route('/schedule_stretch/<user_id>', methods=["POST"])
 # Sends notifications to stretch once every hour
 def subscribe_stretch(user_id):
-    if user_id:
-        stretch = random.choice(STRETCH_MESSAGES)
-        post_at = (datetime.now() + timedelta(hours=1)).timestamp()
+    stretch = random.choice(STRETCH_MESSAGES)
+    post_at = (datetime.now() + timedelta(hours=1)).timestamp()
+    try:
         client.chat_scheduleMessage(channel=user_id, text=stretch.get('text'), post_at=str(post_at), attachments=[
             {
                 "fallback": "Stretching Infographic",
                 "image_url": stretch.get('attachment')
             }
         ])
-    else:
-        client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
-        return Response("Please provide a user id and try again."), 200
+        return Response("Scheduled stretch notification at " + str(post_at)), 200
+    except SlackApiError as e:
+        return Response(str(e)), 500
 
 
-@app.route('/schedule_nagging/<user_id>', methods=["POST"])
 # Sends a nag at random intervals
+@app.route('/schedule_nagging/<user_id>', methods=["POST"])
 def subscribe_nagging(user_id):
-    if user_id:
-        nagging = random.choice(NAGGING_MESSAGES)
-        random_seconds = random.randint(1800, 10800)  # interval between 30 minutes (1800) to 3 hours (10800)
-        post_at = (datetime.now() + timedelta(seconds=random_seconds)).timestamp()
+    nagging = random.choice(NAGGING_MESSAGES)
+    random_seconds = random.randint(1800, 10800)  # interval between 30 minutes (1800) to 3 hours (10800)
+    post_at = (datetime.now() + timedelta(seconds=random_seconds)).timestamp()
+    try:
         client.chat_scheduleMessage(channel=user_id, text=nagging.get('text'), post_at=str(post_at))
-    else:
-        client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
-        return Response("Please provide a user id and try again."), 200
+        return Response("Scheduled nagging notification at " + str(post_at)), 200
+    except SlackApiError as e:
+        return Response(str(e)), 500
 
 
-@app.route('/schedule_water/<user_id>', methods=["POST"])
 # SEND WATER NOTIFICATIONS EVERY 2 HOURS
+@app.route('/schedule_water/<user_id>', methods=["POST"])
 def subscribe_water(user_id):
-    if user_id:
-        water = random.choice(WATER_MESSAGES)
-        post_at = (datetime.now() + timedelta(hours=2)).timestamp()
+    water = random.choice(WATER_MESSAGES)
+    post_at = (datetime.now() + timedelta(hours=water_interval)).timestamp()
+    try:
         client.chat_scheduleMessage(channel=user_id, text=water.get('text'), post_at=str(post_at))
-    else:
-        client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
-        return Response("Please provide a user id and try again."), 200
+        return Response("Scheduled water notification at " + str(post_at)), 200
+    except SlackApiError as e:
+        return Response(str(e)), 500
 
 
-@app.route('/schedule_quotes/<user_id>', methods=["POST"])
 # motivational Quotes
+@app.route('/schedule_quotes/<user_id>', methods=["POST"])
 def subscribe_quotes(user_id):
-    if user_id:
-        req = requests.get("http://famous-quotes.uk/api.php?id=random&minpop=80")
-        json = req.json()
-        quotes = "Quote Of The Day!\n" + json[0][1]
-        current_datetime = datetime.now()
-        current_year = current_datetime.year
-        current_month = current_datetime.month
-        current_day = current_datetime.day
+    req = requests.get("http://famous-quotes.uk/api.php?id=random&minpop=80")
+    json = req.json()
+    quotes = "Quote Of The Day!\n" + json[0][1]
+    current_datetime = datetime.now()
+    current_year = current_datetime.year
+    current_month = current_datetime.month
+    current_day = current_datetime.day
 
-        # time of the day to be posted
-        post = datetime(year=current_year, month=current_month, day=current_day + 1, hour=7)
-        post_at = post.timestamp()
+    # time of the day to be posted
+    post = datetime(year=current_year, month=current_month, day=current_day + 1, hour=quote_time)
+    post_at = post.timestamp()
+    try:
         client.chat_scheduleMessage(channel=user_id, text=quotes, post_at=str(post_at))
+        return Response("Scheduled quote notification at " + str(post_at)), 200
+    except SlackApiError as e:
+        return Response(str(e)), 500
+
+
+@app.route('/set_notifications', methods=['POST'])
+def set_schedule():
+    global stretch_interval
+    global water_interval
+    global quote_time
+    global meme_interval
+    global eye_care_interval
+
+    data = request.form
+    user_id = data.get('user_id')
+    args = data.get('text')
+    if args:
+        args = args.split(" ")
     else:
-        client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
-        return Response("Please provide a user id and try again."), 200
+        return Response("Command requires [value] argument"), 200
+
+    if len(args) != 2:
+        return Response("Command requires 2 arguments: [service] [value]"), 200
+
+    service = args[0]
+    value = args[1]
+
+    try:
+        float(value)
+    except ValueError:
+        return Response("[value] must be a float!"), 200
+
+    if service == 'stretch':
+        stretch_interval = float(value)
+    elif service == 'water':
+        water_interval = float(value)
+    elif service == 'quotes':
+        if 0 <= float(value) < 24:
+            try:
+                quote_time = int(value)
+                return Response(
+                    "Successfully updated notification schedule for " + service + " service."), 200
+            except ValueError:
+                return Response("[value] must be a valid integer for quote service."), 200
+        else:
+            return Response("Invalid value. [value] must be in between 0 and 23."), 200
+    elif service == 'memes':
+        meme_interval = float(value)
+    elif service == 'eye-care':
+        eye_care_interval = float(value)
+    else:
+        try:
+            client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your command.")
+            return Response("Invalid service. Please check and try again."), 200
+        except SlackApiError as e:
+            return Response(str(e)), 500
+    return Response("Successfully updated notification schedule for " + service + " to " + str(float(value)) + " h or "
+                    + str(float(value)*60) + " min."), 200
 
 
 @app.route('/help', methods=['POST'])
@@ -494,7 +592,10 @@ def help_command():
         }
     ]
 
-    client.chat_postMessage(channel=user_id, blocks=help_text)
+    try:
+        client.chat_postMessage(channel=user_id, blocks=help_text)
+    except SlackApiError as e:
+        return Response(str(e)), 500
     return Response(), 200
 
 
