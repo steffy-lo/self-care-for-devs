@@ -433,12 +433,17 @@ def subscribe_water(user_id):
         return Response(str(e)), 500
 
 
+@app.route('/get_quote', methods=["GET"])
+def get_quote():
+    req = requests.get("http://famous-quotes.uk/api.php?id=random&minpop=80")
+    json = req.json()
+    return json[0][1]
+
+
 # motivational Quotes
 @app.route('/schedule_quotes/<user_id>', methods=["POST"])
 def subscribe_quotes(user_id):
-    req = requests.get("http://famous-quotes.uk/api.php?id=random&minpop=80")
-    json = req.json()
-    quotes = "Quote Of The Day!\n" + json[0][1]
+    quotes = "Quote Of The Day!\n" + get_quote()
     current_datetime = datetime.now()
     current_year = current_datetime.year
     current_month = current_datetime.month
