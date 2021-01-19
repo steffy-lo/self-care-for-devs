@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from flask import Flask, request, Response
 from slack.errors import SlackApiError
 from slackeventsapi import SlackEventAdapter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from bs4 import BeautifulSoup
 import requests
 from threading import Thread
@@ -155,21 +155,28 @@ def todo():
     elif re.search("\\d\\d:\\d\\d", text[-5:]):
         schedule_task(user_id, text)
     else:
-        # Bad request
-        return Response(), 400
+        client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
+        return Response("Invalid request. Please check your request format and try again."), 200
+    return Response(), 200
 
 @app.route('/done', methods=['POST'])
 def done():
     data = request.form
     user_id = data.get('user_id')
     text = data.get('text')
+    task_deleted = False
     for msg in client.chat_scheduledMessages_list()["scheduled_messages"]:
-        if msg["text"][:6] == "[task] " + text and text != '':
-            client.chat_deleteScheduledMessage(channel=user_id, scheduled_message_id=msg["scheduled_message_id"])
-            return Response(), 200
+        print(msg["text"][:-9])
+        if msg["text"][:-9] == "[task] " + text and text != '':
+            client.chat_deleteScheduledMessage(channel=user_id, scheduled_message_id=msg["id"])
+            task_deleted = True
+        if msg["text"][:-9] == "[task reminder] " + text and text != '':
+            client.chat_deleteScheduledMessage(channel=user_id, scheduled_message_id=msg["id"])
     # Bad request
-    client.chat_postMessage(channel=user_id, text="Granny cannot find task " + "[" + text + "]")
-    return Response(), 400
+    if not task_deleted:
+        client.chat_postMessage(channel=user_id, text="Granny cannot find task " + "[" + text + "]")
+        return Response("Invalid task name. Please try again."), 200
+    return Response(), 200
 
 
 @app.route('/subscribe', methods=['POST'])
@@ -199,6 +206,7 @@ def subscribe():
         schedule_eye_care_notification(user_id)
     else:
         client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your command.")
+        return Response("Invalid service. Please check and try again."), 200
     return Response(), 200
 
 
@@ -214,11 +222,15 @@ def unsubscribe():
     elif service not in SERVICES or service == '':
         client.chat_postMessage(channel=user_id, text="Please specify an appropriate service to unsubscribe.")
     else:
+        deleting = False
         # Find scheduled message to delete
         for msg in result["scheduled_messages"]:
             if scheduled_exists(service, msg):
                 thr = Thread(target=unsubscribe_service, args=[service, msg, user_id])
                 thr.start()
+                deleting = True
+        if deleting:
+            return Response("Unsubscribing from " + service + " service"), 200
     return Response(), 200
 
 
@@ -251,16 +263,16 @@ def unsubscribe_service(service, msg, user_id):
 
 
 def schedule_task(user_id, text):
-    time = text[-5:]
+    time = text[-5:].strip()
     task = "[task] " + text[:-5] + " by " + time
     task_reminder = "[task reminder] " + text[:-5] + " by " + time
 
     today = datetime.today()
 
     deadline = datetime.combine(today, datetime.strptime(time, '%H:%M').time())
-    reminder = (deadline - timedelta(hours=2)).timestamp()
+    reminder = (deadline - timedelta(minutes=30)).timestamp()
     client.chat_scheduleMessage(channel=user_id, text=task_reminder, post_at=str(reminder))
-    client.chat_scheduleMessage(channel=user_id, text=task, post_at=str(deadline))
+    client.chat_scheduleMessage(channel=user_id, text=task, post_at=str(deadline.timestamp()))
 
 
 def list_todo(user_id):
@@ -302,6 +314,7 @@ def schedule_eye_care_notification(user_id):
         ])
     else:
         client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
+        return Response("Please provide a user id and try again."), 200
 
 
 @app.route('/schedule_meme/<user_id>', methods=["POST"])
@@ -318,7 +331,7 @@ def schedule_meme_notification(user_id):
         return Response(), 200
     else:
         client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
-        return Response(), 200
+        return Response("Please provide a user id and try again."), 200
 
 
 @app.route('/meme', methods=["GET"])
@@ -344,6 +357,7 @@ def subscribe_stretch(user_id):
         ])
     else:
         client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
+        return Response("Please provide a user id and try again."), 200
 
 
 @app.route('/schedule_nagging/<user_id>', methods=["POST"])
@@ -356,6 +370,7 @@ def subscribe_nagging(user_id):
         client.chat_scheduleMessage(channel=user_id, text=nagging.get('text'), post_at=str(post_at))
     else:
         client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
+        return Response("Please provide a user id and try again."), 200
 
 
 @app.route('/schedule_water/<user_id>', methods=["POST"])
@@ -367,6 +382,7 @@ def subscribe_water(user_id):
         client.chat_scheduleMessage(channel=user_id, text=water.get('text'), post_at=str(post_at))
     else:
         client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
+        return Response("Please provide a user id and try again."), 200
 
 
 @app.route('/schedule_quotes/<user_id>', methods=["POST"])
@@ -387,6 +403,7 @@ def subscribe_quotes(user_id):
         client.chat_scheduleMessage(channel=user_id, text=quotes, post_at=str(post_at))
     else:
         client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your request.")
+        return Response("Please provide a user id and try again."), 200
 
 
 @app.route('/help', methods=['POST'])
