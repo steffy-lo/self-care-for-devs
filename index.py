@@ -5,14 +5,14 @@ from dotenv import load_dotenv
 from flask import Flask, request, Response
 from slack.errors import SlackApiError
 from slackeventsapi import SlackEventAdapter
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 import requests
 from threading import Thread
 import random
 import re
 
-DEBUG = True  # change to false if you want to prevent server from reloading
+DEBUG = False  # change to false if you want to prevent server from reloading
 
 env_path = Path('.') / '.env'
 load_dotenv(dotenv_path=env_path)
