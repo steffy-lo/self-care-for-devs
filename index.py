@@ -385,7 +385,7 @@ def schedule_meme_notification(user_id):
 @app.route('/meme', methods=["GET"])
 def get_meme():
     headers = {'User-Agent': 'Mozilla/5.0'}
-    response = requests.get('https://www.reddit.com/r/ProgrammerHumor', headers=headers)
+    response = requests.get('https://www.reddit.com/r/ProgrammerHumor/new/', headers=headers)
     soup = BeautifulSoup(response.content, 'html.parser')
     image = soup.find('img', class_="_2_tDEnGMLxpM6uOa2kaDB3 ImageBox-image media-element _1XWObl-3b9tPy64oaG6fax")
     return str(image.attrs['src'])
