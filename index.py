@@ -262,7 +262,9 @@ def unsubscribe():
                 thr.start()
                 deleting = True
         if deleting:
-            return Response("Unsubscribing from " + service + " service"), 200
+            return Response("Unsubscribed from " + service + " service"), 200
+        else:
+            return Response("You are already currently unsubscribed to " + service + " service"), 200
     return Response(), 200
 
 
@@ -283,10 +285,9 @@ def scheduled_exists(service, msg):
         return False
 
 
-def unsubscribe_service(service, msg, user_id):
+def unsubscribe_service(msg):
     try:
         client.chat_deleteScheduledMessage(channel=msg['channel_id'], scheduled_message_id=msg['id'])
-        client.chat_postMessage(channel=user_id, text="Unsubscribed from " + service + " notifications.")
         return Response(), 200
     except SlackApiError as e:
         return Response(str(e)), 200
