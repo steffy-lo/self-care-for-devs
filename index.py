@@ -184,14 +184,14 @@ def done():
         if msg["text"][:-9] == "[task] " + text and text != '':
             try:
                 client.chat_deleteScheduledMessage(channel=user_id, scheduled_message_id=msg["id"])
-                client.chat_postMessage(channel=user_id, text="Deleted " + text + " from task list.")
+                client.chat_postMessage(channel=user_id, text="Deleted [" + text + "] from task list.")
                 task_deleted = True
             except SlackApiError as e:
                 return Response(str(e)), 500
         if msg["text"][:-9] == "[task reminder] " + text and text != '':
             try:
                 client.chat_deleteScheduledMessage(channel=user_id, scheduled_message_id=msg["id"])
-                client.chat_postMessage(channel=user_id, text="Deleted " + text + " from task list.")
+                client.chat_postMessage(channel=user_id, text="Deleted [" + text + "] from task reminder list.")
             except SlackApiError as e:
                 return Response(str(e)), 500
 
@@ -298,28 +298,28 @@ def unsubscribe_service(msg):
 def schedule_task(user_id, text):
     time = text[-5:].strip()
     task = "[task] " + text[:-5].strip() + " by " + time
-    task_reminder = "[task reminder] " + text[:-5] + " by " + time
+    task_reminder = "[task reminder] " + text[:-5].strip() + " by " + time
 
     today = datetime.today()
 
     deadline = datetime.combine(today, datetime.strptime(time, '%H:%M').time())
     reminder = (deadline - timedelta(minutes=30)).timestamp()
-    if reminder < (datetime.now() + timedelta(minutes=30)).timestamp():
+    if reminder < (datetime.now() + timedelta(minutes=30)).timestamp() or deadline.timestamp() < datetime.now().timestamp():
         try:
             client.chat_postMessage(channel=user_id,
-                                    text="Unable to set deadline as it is too early or in the past.")
+                                    text="Unable to set deadline as it is too early.")
             return Response(
                 "Invalid deadline. Please make sure that your deadline is more than 30 minutes in the future."), 200
         except SlackApiError as e:
             return Response(str(e)), 500
-
-    try:
-        client.chat_scheduleMessage(channel=user_id, text=task_reminder, post_at=str(reminder))
-        client.chat_scheduleMessage(channel=user_id, text=task, post_at=str(deadline.timestamp()))
-        client.chat_postMessage(channel=user_id, text="Added " + text[:-5].strip() + " to task list.")
-        return Response(), 200
-    except SlackApiError as e:
-        return Response(str(e)), 500
+    else:
+        try:
+            client.chat_scheduleMessage(channel=user_id, text=task_reminder, post_at=str(reminder))
+            client.chat_scheduleMessage(channel=user_id, text=task, post_at=str(deadline.timestamp()))
+            client.chat_postMessage(channel=user_id, text="Added " + text[:-5].strip() + " to task list.")
+            return Response(), 200
+        except SlackApiError as e:
+            return Response(str(e)), 500
 
 
 def list_todo(user_id):
