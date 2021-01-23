@@ -184,12 +184,14 @@ def done():
         if msg["text"][:-9] == "[task] " + text and text != '':
             try:
                 client.chat_deleteScheduledMessage(channel=user_id, scheduled_message_id=msg["id"])
+                client.chat_postMessage(channel=user_id, text="Deleted " + text + " from task list.")
                 task_deleted = True
             except SlackApiError as e:
                 return Response(str(e)), 500
         if msg["text"][:-9] == "[task reminder] " + text and text != '':
             try:
                 client.chat_deleteScheduledMessage(channel=user_id, scheduled_message_id=msg["id"])
+                client.chat_postMessage(channel=user_id, text="Deleted " + text + " from task list.")
             except SlackApiError as e:
                 return Response(str(e)), 500
 
@@ -295,7 +297,7 @@ def unsubscribe_service(msg):
 
 def schedule_task(user_id, text):
     time = text[-5:].strip()
-    task = "[task] " + text[:-5] + " by " + time
+    task = "[task] " + text[:-5].strip() + " by " + time
     task_reminder = "[task reminder] " + text[:-5] + " by " + time
 
     today = datetime.today()
@@ -314,6 +316,7 @@ def schedule_task(user_id, text):
     try:
         client.chat_scheduleMessage(channel=user_id, text=task_reminder, post_at=str(reminder))
         client.chat_scheduleMessage(channel=user_id, text=task, post_at=str(deadline.timestamp()))
+        client.chat_postMessage(channel=user_id, text="Added " + text[:-5].strip() + " to task list.")
         return Response(), 200
     except SlackApiError as e:
         return Response(str(e)), 500
