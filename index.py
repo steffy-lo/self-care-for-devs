@@ -343,7 +343,7 @@ def list_todo(user_id):
             blocks = []
             # Print scheduled messages
             for msg in result["scheduled_messages"]:
-                if msg["text"][:6] == "[task]":
+                if msg["text"][:6] == "[task]" and msg["channel_id"] == user_id:
                     blocks.append({
                         "type": "section",
                         "text": {
