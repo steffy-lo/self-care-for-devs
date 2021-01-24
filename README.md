@@ -24,5 +24,5 @@
 
 # Getting Started
 1. Clone this repo
-2. Create your .env file and provide your SLACK_TOKEN and SIGINING_SECRET
-3. 
+2. Create your .env file and provide your SLACK_TOKEN, SIGINING_SECRET, and TIMEZONE
+3. Start developing your Slack Bot!
