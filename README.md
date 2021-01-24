@@ -21,3 +21,8 @@
 | `water`               | Sends reminder to drink water and only H20 every 2 hours                                                                      |                                                |
 | `memes`               | Sends programming-related memes every 3 hours to brighten the day                                                           |
 | `nagging`             | Sends frequent reminders on random things like your posture, lighting on your setup, stand up occasionally and take eye breaks |
+
+# Getting Started
+1. Clone this repo
+2. Create your .env file and provide your SLACK_TOKEN and SIGINING_SECRET
+3. 

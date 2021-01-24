@@ -317,7 +317,7 @@ def schedule_task(user_id, text):
     task_reminder = "[task reminder] " + text[:-5].strip() + " by " + time
 
     deadline = datetime.combine(datetime.now(), datetime.strptime(time, '%H:%M').time())
-    timezone = pytz.timezone('Asia/Singapore')
+    timezone = pytz.timezone(os.environ["TIMEZONE"])
     deadline = timezone.localize(deadline)
     reminder = (deadline - timedelta(minutes=30)).timestamp()
     if reminder < (datetime.now() + timedelta(minutes=30)).timestamp() or deadline.timestamp() < datetime.now().timestamp():
