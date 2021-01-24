@@ -122,6 +122,8 @@ EYE_MESSAGES = [
 
 ]
 
+user_to_channel_id = {}
+
 # subscribe intervals or schedule
 quote_time = 7
 eye_care_interval = 0.5
@@ -163,7 +165,11 @@ def todo():
     user_id = data.get('user_id')
     text = data.get('text')
     if text == '':
-        return list_todo(user_id)
+        if user_id not in user_to_channel_id:
+            client.chat_postMessage(channel=user_id, text="There's currently nothing on your to-do list 😀")
+            return Response(), 200
+        else:
+            return list_todo(user_id)
     elif re.search("\\d\\d:\\d\\d", text[-5:]):
         return schedule_task(user_id, text)
     else:
@@ -213,7 +219,7 @@ def subscribe():
     scheduled_messages = client.chat_scheduledMessages_list()["scheduled_messages"]
 
     for msg in scheduled_messages:
-        if scheduled_exists(service, msg):
+        if scheduled_exists(service, msg, user_id):
             client.chat_postMessage(channel=user_id, text="You are already subscribed to " + service + " notifications.")
             return Response(), 200
 
@@ -267,7 +273,7 @@ def unsubscribe():
         deleting = False
         # Find scheduled message to delete
         for msg in result["scheduled_messages"]:
-            if scheduled_exists(service, msg):
+            if scheduled_exists(service, msg, user_id):
                 thr = Thread(target=unsubscribe_service, args=[msg])
                 thr.start()
                 deleting = True
@@ -278,21 +284,25 @@ def unsubscribe():
     return Response(), 200
 
 
-def scheduled_exists(service, msg):
-    if service == 'stretch' and any(d['text'] == msg['text'] for d in STRETCH_MESSAGES):
-        return True
-    elif service == 'nagging' and any(d['text'] == msg['text'] for d in NAGGING_MESSAGES):
-        return True
-    elif service == 'water' and any(d['text'] == msg['text'] for d in WATER_MESSAGES):
-        return True
-    elif service == 'quotes' and "Quote Of The Day!" in msg['text']:
-        return True
-    elif service == 'memes' and msg['text'] == "Keep Calm and Have a Meme":
-        return True
-    elif service == 'eye-care' and any(d['text'] == msg['text'] for d in EYE_MESSAGES):
-        return True
-    else:
+def scheduled_exists(service, msg, user_id):
+    if user_id not in user_to_channel_id:
         return False
+    if user_to_channel_id[user_id] == msg['channel_id']:
+        if service == 'stretch' and any(d['text'] == msg['text'] for d in STRETCH_MESSAGES):
+            return True
+        elif service == 'nagging' and any(d['text'] == msg['text'] for d in NAGGING_MESSAGES):
+            return True
+        elif service == 'water' and any(d['text'] == msg['text'] for d in WATER_MESSAGES):
+            return True
+        elif service == 'quotes' and "Quote Of The Day!" in msg['text']:
+            return True
+        elif service == 'memes' and msg['text'] == "Keep Calm and Have a Meme":
+            return True
+        elif service == 'eye-care' and any(d['text'] == msg['text'] for d in EYE_MESSAGES):
+            return True
+        else:
+            return False
+    return False
 
 
 def unsubscribe_service(msg):
@@ -319,8 +329,9 @@ def schedule_task(user_id, text):
             return Response(str(e)), 500
     else:
         try:
-            client.chat_scheduleMessage(channel=user_id, text=task_reminder, post_at=str(reminder))
+            res = client.chat_scheduleMessage(channel=user_id, text=task_reminder, post_at=str(reminder))
             client.chat_scheduleMessage(channel=user_id, text=task, post_at=str(deadline.timestamp()))
+            user_to_channel_id[user_id] = res["channel"]
             client.chat_postMessage(channel=user_id, text="Added " + text[:-5].strip() + " to task list.")
             return Response(), 200
         except SlackApiError as e:
@@ -341,7 +352,7 @@ def list_todo(user_id):
             blocks = []
             # Print scheduled messages
             for msg in result["scheduled_messages"]:
-                if msg["text"][:6] == "[task]":
+                if msg["text"][:6] == "[task]" and user_to_channel_id[user_id] == msg["channel_id"]:
                     blocks.append({
                         "type": "section",
                         "text": {
@@ -364,12 +375,13 @@ def schedule_eye_care_notification(user_id):
     eye_care = random.choice(EYE_MESSAGES)
     post_at = (datetime.now() + timedelta(hours=eye_care_interval)).timestamp()
     try:
-        client.chat_scheduleMessage(channel=user_id, post_at=str(post_at), text=eye_care.get('text'), attachments=[
+        res = client.chat_scheduleMessage(channel=user_id, post_at=str(post_at), text=eye_care.get('text'), attachments=[
             {
                 "fallback": "Eye Infographic",
                 "image_url": eye_care.get('image_url')
             }
         ])
+        user_to_channel_id[user_id] = res["channel"]
         return Response("Scheduled eye care notification at " + str(post_at)), 200
     except SlackApiError as e:
         return Response(str(e)), 500
@@ -380,13 +392,14 @@ def schedule_meme_notification(user_id):
     image_url = get_meme()
     post_at = (datetime.now() + timedelta(hours=meme_interval)).timestamp()
     try:
-        client.chat_scheduleMessage(channel=user_id, post_at=str(post_at), text="Keep Calm and Have a Meme",
+        res = client.chat_scheduleMessage(channel=user_id, post_at=str(post_at), text="Keep Calm and Have a Meme",
                                     attachments=[
                                         {
                                             "fallback": "Programming Memes",
                                             "image_url": image_url,
                                         }
                                     ])
+        user_to_channel_id[user_id] = res["channel"]
         return Response("Scheduled meme notification at " + str(post_at)), 200
     except SlackApiError as e:
         return Response(str(e)), 500
@@ -407,12 +420,13 @@ def subscribe_stretch(user_id):
     stretch = random.choice(STRETCH_MESSAGES)
     post_at = (datetime.now() + timedelta(hours=1)).timestamp()
     try:
-        client.chat_scheduleMessage(channel=user_id, text=stretch.get('text'), post_at=str(post_at), attachments=[
+        res = client.chat_scheduleMessage(channel=user_id, text=stretch.get('text'), post_at=str(post_at), attachments=[
             {
                 "fallback": "Stretching Infographic",
                 "image_url": stretch.get('attachment')
             }
         ])
+        user_to_channel_id[user_id] = res["channel"]
         return Response("Scheduled stretch notification at " + str(post_at)), 200
     except SlackApiError as e:
         return Response(str(e)), 500
@@ -425,7 +439,8 @@ def subscribe_nagging(user_id):
     random_seconds = random.randint(1800, 10800)  # interval between 30 minutes (1800) to 3 hours (10800)
     post_at = (datetime.now() + timedelta(seconds=random_seconds)).timestamp()
     try:
-        client.chat_scheduleMessage(channel=user_id, text=nagging.get('text'), post_at=str(post_at))
+        res = client.chat_scheduleMessage(channel=user_id, text=nagging.get('text'), post_at=str(post_at))
+        user_to_channel_id[user_id] = res["channel"]
         return Response("Scheduled nagging notification at " + str(post_at)), 200
     except SlackApiError as e:
         return Response(str(e)), 500
@@ -437,7 +452,8 @@ def subscribe_water(user_id):
     water = random.choice(WATER_MESSAGES)
     post_at = (datetime.now() + timedelta(hours=water_interval)).timestamp()
     try:
-        client.chat_scheduleMessage(channel=user_id, text=water.get('text'), post_at=str(post_at))
+        res = client.chat_scheduleMessage(channel=user_id, text=water.get('text'), post_at=str(post_at))
+        user_to_channel_id[user_id] = res["channel"]
         return Response("Scheduled water notification at " + str(post_at)), 200
     except SlackApiError as e:
         return Response(str(e)), 500
@@ -463,7 +479,8 @@ def subscribe_quotes(user_id):
     post = datetime(year=current_year, month=current_month, day=current_day + 1, hour=quote_time)
     post_at = post.timestamp()
     try:
-        client.chat_scheduleMessage(channel=user_id, text=quotes, post_at=str(post_at))
+        res = client.chat_scheduleMessage(channel=user_id, text=quotes, post_at=str(post_at))
+        user_to_channel_id[user_id] = res["channel"]
         return Response("Scheduled quote notification at " + str(post_at)), 200
     except SlackApiError as e:
         return Response(str(e)), 500
