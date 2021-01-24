@@ -213,7 +213,7 @@ def subscribe():
     scheduled_messages = client.chat_scheduledMessages_list()["scheduled_messages"]
 
     for msg in scheduled_messages:
-        if scheduled_exists(service, msg):
+        if scheduled_exists(service, msg, user_id):
             client.chat_postMessage(channel=user_id, text="You are already subscribed to " + service + " notifications.")
             return Response(), 200
 
@@ -267,7 +267,7 @@ def unsubscribe():
         deleting = False
         # Find scheduled message to delete
         for msg in result["scheduled_messages"]:
-            if scheduled_exists(service, msg):
+            if scheduled_exists(service, msg, user_id):
                 thr = Thread(target=unsubscribe_service, args=[msg])
                 thr.start()
                 deleting = True
@@ -278,21 +278,23 @@ def unsubscribe():
     return Response(), 200
 
 
-def scheduled_exists(service, msg):
-    if service == 'stretch' and any(d['text'] == msg['text'] for d in STRETCH_MESSAGES):
-        return True
-    elif service == 'nagging' and any(d['text'] == msg['text'] for d in NAGGING_MESSAGES):
-        return True
-    elif service == 'water' and any(d['text'] == msg['text'] for d in WATER_MESSAGES):
-        return True
-    elif service == 'quotes' and "Quote Of The Day!" in msg['text']:
-        return True
-    elif service == 'memes' and msg['text'] == "Keep Calm and Have a Meme":
-        return True
-    elif service == 'eye-care' and any(d['text'] == msg['text'] for d in EYE_MESSAGES):
-        return True
-    else:
-        return False
+def scheduled_exists(service, msg, user_id):
+    if user_id == msg['channel_id']:
+        if service == 'stretch' and any(d['text'] == msg['text'] for d in STRETCH_MESSAGES):
+            return True
+        elif service == 'nagging' and any(d['text'] == msg['text'] for d in NAGGING_MESSAGES):
+            return True
+        elif service == 'water' and any(d['text'] == msg['text'] for d in WATER_MESSAGES):
+            return True
+        elif service == 'quotes' and "Quote Of The Day!" in msg['text']:
+            return True
+        elif service == 'memes' and msg['text'] == "Keep Calm and Have a Meme":
+            return True
+        elif service == 'eye-care' and any(d['text'] == msg['text'] for d in EYE_MESSAGES):
+            return True
+        else:
+            return False
+    return False
 
 
 def unsubscribe_service(msg):
