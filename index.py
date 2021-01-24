@@ -320,7 +320,7 @@ def schedule_task(user_id, text):
     timezone = pytz.timezone(os.environ["TIMEZONE"])
     deadline = timezone.localize(deadline)
     reminder = (deadline - timedelta(minutes=30)).timestamp()
-    if reminder < (datetime.now() + timedelta(minutes=30)).timestamp() or deadline.timestamp() < datetime.now().timestamp():
+    if deadline.timestamp() < (datetime.now() + timedelta(minutes=30)).timestamp() or deadline.timestamp() < datetime.now().timestamp():
         try:
             client.chat_postMessage(channel=user_id,
                                     text="Unable to set deadline as it is too early.")
