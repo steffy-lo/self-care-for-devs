@@ -210,6 +210,13 @@ def subscribe():
     data = request.form
     user_id = data.get('user_id')
     service = data.get('text')
+    scheduled_messages = client.chat_scheduledMessages_list()["scheduled_messages"]
+
+    for msg in scheduled_messages:
+        if scheduled_exists(service, msg):
+            client.chat_postMessage(channel=user_id, text="You are already subscribed to " + service + " notifications.")
+            return Response(), 200
+
     if service == 'stretch':
         client.chat_postMessage(channel=user_id, text="Subscribed to stretch notifications!")
         subscribe_stretch(user_id)
@@ -233,6 +240,7 @@ def subscribe():
     else:
         client.chat_postMessage(channel=user_id, text="Sorry, Granny doesn't understand your command.")
         return Response("Invalid service. Please check and try again."), 200
+
     return Response(), 200
 
 
@@ -260,7 +268,7 @@ def unsubscribe():
         # Find scheduled message to delete
         for msg in result["scheduled_messages"]:
             if scheduled_exists(service, msg):
-                thr = Thread(target=unsubscribe_service, args=[service, msg, user_id])
+                thr = Thread(target=unsubscribe_service, args=[msg])
                 thr.start()
                 deleting = True
         if deleting:
@@ -288,11 +296,8 @@ def scheduled_exists(service, msg):
 
 
 def unsubscribe_service(msg):
-    try:
-        client.chat_deleteScheduledMessage(channel=msg['channel_id'], scheduled_message_id=msg['id'])
-        return Response(), 200
-    except SlackApiError as e:
-        return Response(str(e)), 200
+    client.chat_deleteScheduledMessage(channel=msg['channel_id'], scheduled_message_id=msg['id'])
+    return Response(), 200
 
 
 def schedule_task(user_id, text):
