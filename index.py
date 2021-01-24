@@ -11,6 +11,7 @@ import requests
 from threading import Thread
 import random
 import re
+import pytz
 
 DEBUG = False  # change to false if you want to prevent server from reloading
 
@@ -315,9 +316,9 @@ def schedule_task(user_id, text):
     task = "[task] " + text[:-5].strip() + " by " + time
     task_reminder = "[task reminder] " + text[:-5].strip() + " by " + time
 
-    today = datetime.today()
-
-    deadline = datetime.combine(today, datetime.strptime(time, '%H:%M').time())
+    deadline = datetime.combine(datetime.now(), datetime.strptime(time, '%H:%M').time())
+    timezone = pytz.timezone('Asia/Singapore')
+    deadline = timezone.localize(deadline)
     reminder = (deadline - timedelta(minutes=30)).timestamp()
     if reminder < (datetime.now() + timedelta(minutes=30)).timestamp() or deadline.timestamp() < datetime.now().timestamp():
         try:

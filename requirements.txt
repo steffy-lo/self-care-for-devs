@@ -14,7 +14,9 @@ MarkupSafe==1.1.1
 multidict==5.1.0
 pyee==7.0.4
 python-dotenv==0.15.0
+pytz==2020.5
 requests==2.25.1
+six==1.15.0
 slackclient==2.9.3
 slackeventsapi==2.2.1
 soupsieve==2.1
